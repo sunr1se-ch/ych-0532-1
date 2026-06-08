@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>水族馆溶氧泵与隔离转移登记系统</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .app-container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 24px 32px;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #1a1a2e;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .nav-tab {
+            padding: 10px 24px;
+            border: none;
+            background: #f0f0f0;
+            color: #666;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .nav-tab:hover {
+            background: #e0e0e0;
+        }
+
+        .nav-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .content {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .status-card {
+            padding: 24px;
+            border-radius: 12px;
+            color: white;
+            text-align: center;
+        }
+
+        .status-card.green {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+
+        .status-card.orange {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .status-card.red {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+        }
+
+        .status-card .number {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .status-card .label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .pools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .pool-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .pool-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        }
+
+        .pool-card.maintenance {
+            border-left-color: #f5576c;
+            background: #fff5f5;
+        }
+
+        .pool-card.isolation-full {
+            border-left-color: #ff9f43;
+            background: #fff8e6;
+        }
+
+        .pool-card.isolation {
+            border-left-color: #10ac84;
+        }
+
+        .pool-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .pool-number {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1a1a2e;
+        }
+
+        .pool-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge-normal {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-maintenance {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge-isolation {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .badge-full {
+            background: #ffeeba;
+            color: #856404;
+        }
+
+        .pool-info {
+            display: grid;
+            gap: 8px;
+            font-size: 13px;
+            color: #555;
+        }
+
+        .pool-info div {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .pool-info span:last-child {
+            font-weight: 500;
+            color: #1a1a2e;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-fill.warning {
+            background: linear-gradient(90deg, #f5576c 0%, #eb3349 100%);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid #667eea;
+            color: #667eea;
+        }
+
+        .btn-outline:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .detail-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .detail-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #1a1a2e;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .detail-item {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+        }
+
+        .detail-item .label {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 4px;
+        }
+
+        .detail-item .value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1a1a2e;
+        }
+
+        .chart-container {
+            height: 350px;
+            margin-bottom: 24px;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e9ecef;
+        }
+
+        .timeline-item {
+            position: relative;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -26px;
+            top: 18px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #667eea;
+            border: 2px solid white;
+            box-shadow: 0 0 0 2px #667eea;
+        }
+
+        .timeline-item.out::before {
+            background: #f5576c;
+            box-shadow: 0 0 0 2px #f5576c;
+        }
+
+        .timeline-item.in::before {
+            background: #38ef7d;
+            box-shadow: 0 0 0 2px #38ef7d;
+        }
+
+        .timeline-time {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 4px;
+        }
+
+        .timeline-content {
+            font-size: 14px;
+            color: #333;
+        }
+
+        .timeline-reason {
+            font-size: 13px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #1a1a2e;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group select,
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .alert {
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th,
+        .table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+            font-size: 13px;
+        }
+
+        .table td {
+            font-size: 14px;
+            color: #555;
+        }
+
+        .table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .maintenance-list {
+            display: grid;
+            gap: 16px;
+        }
+
+        .maintenance-item {
+            background: #fff5f5;
+            border: 1px solid #f5c6cb;
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .maintenance-info h4 {
+            color: #721c24;
+            margin-bottom: 8px;
+        }
+
+        .maintenance-info p {
+            color: #999;
+            font-size: 13px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1a1a2e;
+            margin-bottom: 20px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #667eea;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 20px;
+            background: none;
+            border: none;
+        }
+
+        .back-btn:hover {
+            text-decoration: underline;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .action-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .oxygen-warning {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #f8d7da;
+            color: #721c24;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-left: 8px;
+        }
+
+        .oxygen-normal {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #d4edda;
+            color: #155724;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="app-container">
+            <div class="header">
+                <h1>🐠 水族馆溶氧泵与隔离转移登记系统</h1>
+                <p>实时监控溶氧状态 · 智能管理鱼病隔离 · 自动触发检修告警</p>
+                <div class="nav-tabs">
+                    <button class="nav-tab" :class="{ active: currentView === 'overview' }" @click="currentView = 'overview'; selectedPool = null">池位总览</button>
+                    <button class="nav-tab" :class="{ active: currentView === 'maintenance' }" @click="currentView = 'maintenance'; selectedPool = null">待检修待办</button>
+                    <button class="nav-tab" :class="{ active: currentView === 'transfers' }" @click="currentView = 'transfers'; selectedPool = null">转移记录</button>
+                </div>
+            </div>
+
+            <div class="content">
+                <div v-if="loading" class="loading">
+                    <div class="spinner"></div>
+                    <div>加载中...</div>
+                </div>
+
+                <template v-else>
+                    <template v-if="currentView === 'overview' && !selectedPool">
+                        <div class="status-cards">
+                            <div class="status-card green">
+                                <div class="number">{{ statusSummary.normal_count }}</div>
+                                <div class="label">正常在养</div>
+                            </div>
+                            <div class="status-card orange">
+                                <div class="number">{{ statusSummary.maintenance_count }}</div>
+                                <div class="label">待检修</div>
+                            </div>
+                            <div class="status-card red">
+                                <div class="number">{{ statusSummary.isolation_full_count }}</div>
+                                <div class="label">隔离已满</div>
+                            </div>
+                        </div>
+
+                        <div class="action-bar">
+                            <button class="btn btn-primary" @click="showTransferModal = true">
+                                + 新增转移登记
+                            </button>
+                            <button class="btn btn-outline" @click="refreshData">
+                                🔄 刷新数据
+                            </button>
+                        </div>
+
+                        <h3 class="section-title">展示池</h3>
+                        <div class="pools-grid">
+                            <div
+                                v-for="pool in displayPools"
+                                :key="pool.id"
+                                class="pool-card"
+                                :class="{ maintenance: pool.pump_status === 'maintenance', 'isolation-full': pool.isolation_full }"
+                                @click="viewPoolDetail(pool)"
+                            >
+                                <div class="pool-header">
+                                    <div class="pool-number">{{ pool.pool_number }}</div>
+                                    <span class="pool-badge" :class="getBadgeClass(pool)">
+                                        {{ getPoolStatusText(pool) }}
+                                    </span>
+                                </div>
+                                <div class="pool-info">
+                                    <div>
+                                        <span>泵编号</span>
+                                        <span>{{ pool.pump_number }}</span>
+                                    </div>
+                                    <div>
+                                        <span>容载</span>
+                                        <span>{{ pool.current_count }} / {{ pool.max_capacity }} 尾</span>
+                                    </div>
+                                    <div>
+                                        <span>最近溶氧</span>
+                                        <span>
+                                            {{ formatReading(pool.id) }} mg/L
+                                            <span v-if="getLatestReading(pool.id) !== null && getLatestReading(pool.id) < 4" class="oxygen-warning">偏低</span>
+                                            <span v-else class="oxygen-normal">正常</span>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="progress-bar">
+                                    <div
+                                        class="progress-fill"
+                                        :class="{ warning: pool.current_count / pool.max_capacity > 0.8 }"
+                                        :style="{ width: (pool.current_count / pool.max_capacity * 100) + '%' }"
+                                    ></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h3 class="section-title" style="margin-top: 32px;">隔离池</h3>
+                        <div class="pools-grid">
+                            <div
+                                v-for="pool in isolationPools"
+                                :key="pool.id"
+                                class="pool-card isolation"
+                                :class="{ 'isolation-full': pool.isolation_full }"
+                                @click="viewPoolDetail(pool)"
+                            >
+                                <div class="pool-header">
+                                    <div class="pool-number">{{ pool.pool_number }}</div>
+                                    <span class="pool-badge" :class="pool.isolation_full ? 'badge-full' : 'badge-isolation'">
+                                        {{ pool.isolation_full ? '隔离已满' : '隔离池' }}
+                                    </span>
+                                </div>
+                                <div class="pool-info">
+                                    <div>
+                                        <span>泵编号</span>
+                                        <span>{{ pool.pump_number }}</span>
+                                    </div>
+                                    <div>
+                                        <span>容载</span>
+                                        <span>{{ pool.current_count }} / {{ pool.max_capacity }} 尾</span>
+                                    </div>
+                                    <div>
+                                        <span>7日隔离量</span>
+                                        <span>{{ pool.isolation_used }} / {{ pool.max_capacity }} 尾</span>
+                                    </div>
+                                    <div>
+                                        <span>最近溶氧</span>
+                                        <span>{{ formatReading(pool.id) }} mg/L</span>
+                                    </div>
+                                </div>
+                                <div class="progress-bar">
+                                    <div
+                                        class="progress-fill"
+                                        :class="{ warning: pool.isolation_used / pool.max_capacity > 0.8 }"
+                                        :style="{ width: (pool.isolation_used / pool.max_capacity * 100) + '%' }"
+                                    ></div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template v-if="selectedPool">
+                        <button class="back-btn" @click="selectedPool = null">
+                            ← 返回总览
+                        </button>
+
+                        <div class="detail-panel">
+                            <div class="detail-header">
+                                <div>
+                                    <div class="detail-title">{{ selectedPool.pool_number }}</div>
+                                    <span class="pool-badge" :class="getBadgeClass(selectedPool)">
+                                        {{ getPoolStatusText(selectedPool) }}
+                                    </span>
+                                </div>
+                                <div>
+                                    <button v-if="selectedPool.pump_status === 'maintenance'" class="btn btn-success btn-sm" @click="resolveMaintenance">
+                                        ✓ 标记已检修
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="detail-grid">
+                                <div class="detail-item">
+                                    <div class="label">泵编号</div>
+                                    <div class="value">{{ selectedPool.pump_number }}</div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="label">当前尾数</div>
+                                    <div class="value">{{ selectedPool.current_count }} / {{ selectedPool.max_capacity }} 尾</div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="label">最近溶氧</div>
+                                    <div class="value">
+                                        {{ formatReading(selectedPool.id) }} mg/L
+                                        <span v-if="getLatestReading(selectedPool.id) !== null && getLatestReading(selectedPool.id) < 4" class="oxygen-warning">偏低</span>
+                                    </div>
+                                </div>
+                                <div v-if="selectedPool.is_isolation" class="detail-item">
+                                    <div class="label">7日隔离量</div>
+                                    <div class="value">{{ selectedPool.isolation_used }} / {{ selectedPool.max_capacity }} 尾</div>
+                                </div>
+                            </div>
+
+                            <h4 class="section-title" style="font-size: 16px;">溶氧浓度趋势（近24小时）</h4>
+                            <div ref="oxygenChart" class="chart-container"></div>
+
+                            <h4 class="section-title" style="font-size: 16px; margin-top: 24px;">转移时间线</h4>
+                            <div v-if="poolDetail && poolDetail.transfer_records.length > 0" class="timeline">
+                                <div
+                                    v-for="record in poolDetail.transfer_records"
+                                    :key="record.id"
+                                    class="timeline-item"
+                                    :class="record.source_pool_id === selectedPool.id ? 'out' : 'in'"
+                                >
+                                    <div class="timeline-time">{{ formatDateTime(record.recorded_at) }}</div>
+                                    <div class="timeline-content">
+                                        <span v-if="record.source_pool_id === selectedPool.id">
+                                            转移至 <strong>{{ record.target_pool_number }}</strong>，共 <strong>{{ record.fish_count }}</strong> 尾
+                                        </span>
+                                        <span v-else>
+                                            从 <strong>{{ record.source_pool_number }}</strong> 转入，共 <strong>{{ record.fish_count }}</strong> 尾
+                                        </span>
+                                    </div>
+                                    <div class="timeline-reason">原因：{{ record.reason }}</div>
+                                </div>
+                            </div>
+                            <div v-else class="empty-state">
+                                <div class="empty-state-icon">📋</div>
+                                <div>暂无转移记录</div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template v-if="currentView === 'maintenance' && !selectedPool">
+                        <h3 class="section-title">待检修待办</h3>
+                        <div v-if="maintenancePools.length > 0" class="maintenance-list">
+                            <div v-for="pool in maintenancePools" :key="pool.id" class="maintenance-item">
+                                <div class="maintenance-info">
+                                    <h4>{{ pool.pool_number }} - 关联泵 {{ pool.pump_number }}</h4>
+                                    <p>当前尾数：{{ pool.current_count }} / {{ pool.max_capacity }} 尾</p>
+                                    <p style="color: #dc3545;">连续2次溶氧低于4mg/L，已标记待检修，禁止新鱼入池</p>
+                                </div>
+                                <div>
+                                    <button class="btn btn-success btn-sm" @click="resolveMaintenanceFromList(pool)">
+                                        ✓ 标记已检修
+                                    </button>
+                                    <button class="btn btn-outline btn-sm" style="margin-left: 8px;" @click="viewPoolDetail(pool)">
+                                        查看详情
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else class="empty-state">
+                            <div class="empty-state-icon">✅</div>
+                            <div>暂无待检修项目</div>
+                        </div>
+                    </template>
+
+                    <template v-if="currentView === 'transfers' && !selectedPool">
+                        <div class="action-bar">
+                            <button class="btn btn-primary" @click="showTransferModal = true">
+                                + 新增转移登记
+                            </button>
+                        </div>
+                        <h3 class="section-title">转移记录</h3>
+                        <div v-if="transferRecords.length > 0">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>登记时间</th>
+                                        <th>源池</th>
+                                        <th>目标隔离池</th>
+                                        <th>转移尾数</th>
+                                        <th>原因</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="record in transferRecords" :key="record.id">
+                                        <td>{{ formatDateTime(record.recorded_at) }}</td>
+                                        <td>{{ record.source_pool_number }}</td>
+                                        <td>{{ record.target_pool_number }}</td>
+                                        <td>{{ record.fish_count }} 尾</td>
+                                        <td>{{ record.reason }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div v-else class="empty-state">
+                            <div class="empty-state-icon">📋</div>
+                            <div>暂无转移记录</div>
+                        </div>
+                    </template>
+                </template>
+            </div>
+        </div>
+
+        <div v-if="showTransferModal" class="modal-overlay" @click.self="showTransferModal = false">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">新增隔离转移登记</h3>
+                    <button class="close-btn" @click="showTransferModal = false">&times;</button>
+                </div>
+
+                <div v-if="transferAlert" class="alert" :class="transferAlert.type">
+                    {{ transferAlert.message }}
+                </div>
+
+                <form @submit.prevent="submitTransfer">
+                    <div class="form-group">
+                        <label>源池（转出）</label>
+                        <select v-model="transferForm.source_pool_id" required>
+                            <option value="">请选择源池</option>
+                            <option
+                                v-for="pool in availableSourcePools"
+                                :key="pool.id"
+                                :value="pool.id"
+                                :disabled="pool.pump_status === 'maintenance'"
+                            >
+                                {{ pool.pool_number }} (当前: {{ pool.current_count }} 尾)
+                                <span v-if="pool.pump_status === 'maintenance'"> - 待检修</span>
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>目标隔离池（转入）</label>
+                        <select v-model="transferForm.target_pool_id" required>
+                            <option value="">请选择隔离池</option>
+                            <option
+                                v-for="pool in isolationPools"
+                                :key="pool.id"
+                                :value="pool.id"
+                                :disabled="pool.isolation_full"
+                            >
+                                {{ pool.pool_number }} (7日隔离: {{ pool.isolation_used }}/{{ pool.max_capacity }})
+                                <span v-if="pool.isolation_full"> - 已满</span>
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>转移尾数</label>
+                        <input
+                            type="number"
+                            v-model.number="transferForm.fish_count"
+                            min="1"
+                            :max="maxTransferCount"
+                            placeholder="请输入转移尾数"
+                            required
+                        >
+                        <small v-if="maxTransferCount > 0" style="color: #666;">
+                            可转移最大数量: {{ maxTransferCount }} 尾
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>转移原因</label>
+                        <textarea
+                            v-model="transferForm.reason"
+                            rows="3"
+                            placeholder="请输入转移原因，如：白点病隔离、水霉病隔离等"
+                            required
+                        ></textarea>
+                    </div>
+
+                    <div style="display: flex; gap: 12px;">
+                        <button type="button" class="btn btn-outline" style="flex: 1;" @click="showTransferModal = false">
+                            取消
+                        </button>
+                        <button type="submit" class="btn btn-primary" style="flex: 1;" :disabled="submittingTransfer">
+                            {{ submittingTransfer ? '提交中...' : '提交登记' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
+
+        const API_BASE = '/api';
+
+        createApp({
+            setup() {
+                const loading = ref(true);
+                const currentView = ref('overview');
+                const pools = ref([]);
+                const statusSummary = ref({ normal_count: 0, maintenance_count: 0, isolation_full_count: 0, total_pools: 0 });
+                const maintenancePools = ref([]);
+                const transferRecords = ref([]);
+                const oxygenReadings = ref({});
+                const selectedPool = ref(null);
+                const poolDetail = ref(null);
+                const showTransferModal = ref(false);
+                const submittingTransfer = ref(false);
+                const transferAlert = ref(null);
+                const oxygenChart = ref(null);
+                let chartInstance = null;
+
+                const transferForm = ref({
+                    source_pool_id: '',
+                    target_pool_id: '',
+                    fish_count: 1,
+                    reason: '疾病隔离'
+                });
+
+                const displayPools = computed(() => pools.value.filter(p => !p.is_isolation));
+                const isolationPools = computed(() => pools.value.filter(p => p.is_isolation));
+
+                const availableSourcePools = computed(() =>
+                    pools.value.filter(p => !p.is_isolation && p.current_count > 0)
+                );
+
+                const maxTransferCount = computed(() => {
+                    const source = pools.value.find(p => p.id == transferForm.value.source_pool_id);
+                    if (!source) return 0;
+                    return source.current_count;
+                });
+
+                const axiosInstance = axios.create({
+                    baseURL: API_BASE,
+                    timeout: 10000
+                });
+
+                async function fetchData() {
+                    loading.value = true;
+                    try {
+                        const [poolsRes, summaryRes, maintenanceRes, transfersRes] = await Promise.all([
+                            axiosInstance.get('/pools'),
+                            axiosInstance.get('/pools/status-summary'),
+                            axiosInstance.get('/pools/maintenance'),
+                            axiosInstance.get('/transfer-records')
+                        ]);
+                        pools.value = poolsRes.data;
+                        statusSummary.value = summaryRes.data;
+                        maintenancePools.value = maintenanceRes.data;
+                        transferRecords.value = transfersRes.data;
+
+                        if (selectedPool.value) {
+                            const updated = pools.value.find(p => p.id === selectedPool.value.id);
+                            if (updated) selectedPool.value = updated;
+                        }
+
+                        for (const pool of pools.value) {
+                            try {
+                                const readingsRes = await axiosInstance.get(`/pools/${pool.id}/oxygen-readings?hours=24`);
+                                oxygenReadings.value[pool.id] = readingsRes.data;
+                            } catch (e) {
+                                oxygenReadings.value[pool.id] = [];
+                            }
+                        }
+                    } catch (error) {
+                        console.error('获取数据失败:', error);
+                        alert('获取数据失败，请检查后端服务是否正常');
+                    } finally {
+                        loading.value = false;
+                    }
+                }
+
+                async function refreshData() {
+                    await fetchData();
+                    if (selectedPool.value) {
+                        await viewPoolDetail(selectedPool.value);
+                    }
+                }
+
+                function getLatestReading(poolId) {
+                    const readings = oxygenReadings.value[poolId] || [];
+                    if (readings.length === 0) return null;
+                    return readings[readings.length - 1].reading;
+                }
+
+                function formatReading(poolId) {
+                    const reading = getLatestReading(poolId);
+                    return reading === null ? '-' : reading.toFixed(1);
+                }
+
+                function getBadgeClass(pool) {
+                    if (pool.pump_status === 'maintenance') return 'badge-maintenance';
+                    if (pool.is_isolation && pool.isolation_full) return 'badge-full';
+                    if (pool.is_isolation) return 'badge-isolation';
+                    return 'badge-normal';
+                }
+
+                function getPoolStatusText(pool) {
+                    if (pool.pump_status === 'maintenance') return '待检修';
+                    if (pool.is_isolation && pool.isolation_full) return '隔离已满';
+                    if (pool.is_isolation) return '隔离池';
+                    return '正常';
+                }
+
+                async function viewPoolDetail(pool) {
+                    selectedPool.value = pool;
+                    try {
+                        const [detailRes, readingsRes] = await Promise.all([
+                            axiosInstance.get(`/pools/${pool.id}`),
+                            axiosInstance.get(`/pools/${pool.id}/oxygen-readings?hours=24`)
+                        ]);
+                        poolDetail.value = detailRes.data;
+                        oxygenReadings.value[pool.id] = readingsRes.data;
+                        await nextTick();
+                        renderOxygenChart(pool.id);
+                    } catch (error) {
+                        console.error('获取池详情失败:', error);
+                    }
+                }
+
+                function renderOxygenChart(poolId) {
+                    if (!oxygenChart.value) return;
+
+                    if (chartInstance) {
+                        chartInstance.dispose();
+                    }
+
+                    const readings = oxygenReadings.value[poolId] || [];
+                    const times = readings.map(r => {
+                        const dt = new Date(r.recorded_at);
+                        return `${dt.getMonth() + 1}/${dt.getDate()} ${dt.getHours().toString().padStart(2, '0')}:00`;
+                    });
+                    const values = readings.map(r => r.reading);
+
+                    chartInstance = echarts.init(oxygenChart.value);
+
+                    const option = {
+                        tooltip: {
+                            trigger: 'axis',
+                            formatter: '{b}<br/>溶氧: {c} mg/L'
+                        },
+                        grid: {
+                            left: '3%',
+                            right: '4%',
+                            bottom: '3%',
+                            containLabel: true
+                        },
+                        xAxis: {
+                            type: 'category',
+                            boundaryGap: false,
+                            data: times,
+                            axisLabel: {
+                                rotate: 45,
+                                fontSize: 10
+                            }
+                        },
+                        yAxis: {
+                            type: 'value',
+                            name: 'mg/L',
+                            min: 0,
+                            max: 10,
+                            axisLabel: {
+                                formatter: '{value}'
+                            }
+                        },
+                        series: [{
+                            name: '溶氧浓度',
+                            type: 'line',
+                            smooth: true,
+                            data: values,
+                            symbol: 'circle',
+                            symbolSize: 6,
+                            lineStyle: {
+                                width: 3,
+                                color: {
+                                    type: 'linear',
+                                    x: 0, y: 0, x2: 1, y2: 0,
+                                    colorStops: [
+                                        { offset: 0, color: '#667eea' },
+                                        { offset: 1, color: '#764ba2' }
+                                    ]
+                                }
+                            },
+                            areaStyle: {
+                                color: {
+                                    type: 'linear',
+                                    x: 0, y: 0, x2: 0, y2: 1,
+                                    colorStops: [
+                                        { offset: 0, color: 'rgba(102, 126, 234, 0.3)' },
+                                        { offset: 1, color: 'rgba(102, 126, 234, 0.05)' }
+                                    ]
+                                }
+                            },
+                            markLine: {
+                                silent: true,
+                                data: [{
+                                    yAxis: 4,
+                                    label: {
+                                        formatter: '警戒线 4mg/L',
+                                        position: 'end'
+                                    },
+                                    lineStyle: {
+                                        color: '#f5576c',
+                                        type: 'dashed',
+                                        width: 2
+                                    }
+                                }]
+                            },
+                            itemStyle: {
+                                color: function(params) {
+                                    return params.data < 4 ? '#f5576c' : '#667eea';
+                                }
+                            }
+                        }]
+                    };
+
+                    chartInstance.setOption(option);
+                }
+
+                function formatDateTime(dtStr) {
+                    const dt = new Date(dtStr);
+                    return `${dt.getFullYear()}-${(dt.getMonth() + 1).toString().padStart(2, '0')}-${dt.getDate().toString().padStart(2, '0')} ${dt.getHours().toString().padStart(2, '0')}:${dt.getMinutes().toString().padStart(2, '0')}`;
+                }
+
+                async function submitTransfer() {
+                    submittingTransfer.value = true;
+                    transferAlert.value = null;
+
+                    try {
+                        const res = await axiosInstance.post('/transfer-records', {
+                            source_pool_id: parseInt(transferForm.value.source_pool_id),
+                            target_pool_id: parseInt(transferForm.value.target_pool_id),
+                            fish_count: transferForm.value.fish_count,
+                            reason: transferForm.value.reason
+                        });
+
+                        if (res.data.success) {
+                            transferAlert.value = { type: 'alert-success', message: res.data.message };
+                            setTimeout(() => {
+                                showTransferModal.value = false;
+                                transferAlert.value = null;
+                                resetTransferForm();
+                                fetchData();
+                            }, 1500);
+                        } else {
+                            transferAlert.value = { type: 'alert-error', message: res.data.message };
+                        }
+                    } catch (error) {
+                        transferAlert.value = { type: 'alert-error', message: '提交失败，请稍后重试' };
+                    } finally {
+                        submittingTransfer.value = false;
+                    }
+                }
+
+                function resetTransferForm() {
+                    transferForm.value = {
+                        source_pool_id: '',
+                        target_pool_id: '',
+                        fish_count: 1,
+                        reason: '疾病隔离'
+                    };
+                }
+
+                async function resolveMaintenance() {
+                    if (!selectedPool.value) return;
+                    try {
+                        await axiosInstance.put(`/pools/${selectedPool.value.id}/pump-status?status=normal`);
+                        alert('泵状态已更新为正常');
+                        await fetchData();
+                        await viewPoolDetail(selectedPool.value);
+                    } catch (error) {
+                        console.error('更新状态失败:', error);
+                        alert('更新失败，请稍后重试');
+                    }
+                }
+
+                async function resolveMaintenanceFromList(pool) {
+                    try {
+                        await axiosInstance.put(`/pools/${pool.id}/pump-status?status=normal`);
+                        alert('泵状态已更新为正常');
+                        await fetchData();
+                    } catch (error) {
+                        console.error('更新状态失败:', error);
+                        alert('更新失败，请稍后重试');
+                    }
+                }
+
+                watch(showTransferModal, (val) => {
+                    if (!val) {
+                        transferAlert.value = null;
+                        resetTransferForm();
+                    }
+                });
+
+                onMounted(() => {
+                    fetchData();
+
+                    window.addEventListener('resize', () => {
+                        if (chartInstance) {
+                            chartInstance.resize();
+                        }
+                    });
+                });
+
+                return {
+                    loading,
+                    currentView,
+                    pools,
+                    statusSummary,
+                    maintenancePools,
+                    transferRecords,
+                    displayPools,
+                    isolationPools,
+                    availableSourcePools,
+                    maxTransferCount,
+                    selectedPool,
+                    poolDetail,
+                    showTransferModal,
+                    submittingTransfer,
+                    transferAlert,
+                    transferForm,
+                    oxygenChart,
+                    getLatestReading,
+                    formatReading,
+                    getBadgeClass,
+                    getPoolStatusText,
+                    viewPoolDetail,
+                    formatDateTime,
+                    submitTransfer,
+                    resolveMaintenance,
+                    resolveMaintenanceFromList,
+                    refreshData
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
